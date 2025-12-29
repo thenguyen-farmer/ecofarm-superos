@@ -101,25 +101,53 @@
         <div class="tab-content" id="mainTabContent">
             <!-- 1. DASHBOARD -->
             <div class="tab-pane fade show active" id="home">
-                <div class="row">
-                    <div class="col-md-4"><div class="glass-card text-center text-success"><h5>Cây Trồng</h5><h2 id="stat-tree">0</h2></div></div>
-                    <div class="col-md-4"><div class="glass-card text-center text-primary"><h5>Nhân Sự</h5><h2 id="stat-staff">0</h2></div></div>
-                    <div class="col-md-4"><div class="glass-card text-center text-danger"><h5>Tồn Kho</h5><h2 id="stat-inv">0</h2></div></div>
+                <!-- Stats Row -->
+                <div class="row g-2 mb-3">
+                    <div class="col-4">
+                        <div class="glass-card text-center p-2 h-100">
+                            <small class="text-muted">Cây Trồng</small>
+                            <h4 id="stat-tree" class="text-success m-0 fw-bold">0</h4>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="glass-card text-center p-2 h-100">
+                            <small class="text-muted">Nhân Sự</small>
+                            <h4 id="stat-staff" class="text-primary m-0 fw-bold">0</h4>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="glass-card text-center p-2 h-100 bg-danger text-white" onclick="$('#mainTab button[data-bs-target=\'#hrm\']').click(); switchTab(document.querySelector('.nav-btn[data-bs-target=\'#hrm\']'))">
+                            <small>Nợ Lương</small>
+                            <h5 id="stat-salary-debt" class="m-0 fw-bold">0</h5>
+                        </div>
+                    </div>
                 </div>
+
+                <!-- Quick Actions -->
+                <div class="glass-card mb-3">
+                    <h6 class="text-muted mb-2">TRUY CẬP NHANH</h6>
+                    <div class="d-flex justify-content-around">
+                        <button class="btn btn-outline-primary rounded-circle p-3" onclick="switchTab(document.querySelector('.nav-btn[data-bs-target=\'#hrm\']'))"><i class="fas fa-user-check fa-lg"></i></button>
+                        <button class="btn btn-outline-success rounded-circle p-3" onclick="switchTab(document.querySelector('.nav-btn[data-bs-target=\'#finance\']'))"><i class="fas fa-plus fa-lg"></i></button>
+                        <button class="btn btn-outline-info rounded-circle p-3" onclick="switchTab(document.querySelector('.nav-btn[data-bs-target=\'#chat\']'))"><i class="fas fa-camera fa-lg"></i></button>
+                    </div>
+                    <div class="d-flex justify-content-around small text-muted mt-1">
+                        <span>Chấm công</span>
+                        <span>Thu/Chi</span>
+                        <span>Soi bệnh</span>
+                    </div>
+                </div>
+
                 <div class="row">
                     <div class="col-md-8">
-                         <div class="glass-card">
-                            <h5><i class="fas fa-chart-bar"></i> Biểu Đồ Tài Chính</h5>
+                         <div class="glass-card mb-3">
+                            <h5><i class="fas fa-chart-bar"></i> Tài Chính Tháng</h5>
                             <canvas id="financeChart" style="height:200px"></canvas>
                         </div>
                     </div>
                     <div class="col-md-4">
-                        <div class="glass-card">
-                            <h5><i class="fas fa-exclamation-triangle"></i> Cảnh Báo</h5>
-                            <ul id="dashboard-alerts" class="list-group list-group-flush small"></ul>
-                        </div>
-                         <div class="glass-card mt-3">
-                            <h5><i class="fas fa-tasks"></i> Việc Cần Làm</h5>
+                        <div class="glass-card mb-3">
+                            <h5><i class="fas fa-tasks"></i> Việc Hôm Nay</h5>
                             <ul id="today-tasks" class="list-group list-group-flush small"></ul>
                         </div>
                     </div>
@@ -173,6 +201,14 @@
                                     <tbody></tbody>
                                 </table>
                             </div>
+                        </div>
+                        
+                        <div class="glass-card mt-3">
+                            <h5>Lịch Sử Chấm Công Gần Nhất</h5>
+                            <table class="table table-sm" id="table-attendance">
+                                <thead><tr><th>Ngày</th><th>Tên</th><th>Việc</th><th>Tổng</th><th>TT</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -303,8 +339,26 @@
     <script src="js/app.js"></script>
     <script>
         function switchTab(btn) {
-            $('.nav-btn').removeClass('active');
-            $(btn).addClass('active');
+            // 1. Visual Active State
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // 2. Trigger Bootstrap Tab Switch
+            const targetSelector = btn.getAttribute('data-bs-target');
+            const targetPane = document.querySelector(targetSelector);
+            
+            // Standard Bootstrap 5 Tab trigger
+            // We find the trigger element corresponding to this target if it exists, or create a virtual one
+            // Simpler: Just remove .active/.show from all panes and add to target
+            document.querySelectorAll('.tab-pane').forEach(p => {
+                p.classList.remove('show', 'active');
+            });
+            targetPane.classList.add('show', 'active');
+            
+            // Special Case: Resize Map if opening map tab
+            if (targetSelector === '#map-view' && typeof mapInstance !== 'undefined') {
+                setTimeout(() => mapInstance.invalidateSize(), 200);
+            }
         }
     </script>
 </body>
