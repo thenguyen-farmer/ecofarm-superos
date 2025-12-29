@@ -9,7 +9,7 @@ let mapMarkers = [];
 $(document).ready(function() {
     // 1. Check Libraries
     if (typeof window.supabase === 'undefined' || typeof CONFIG === 'undefined') {
-        alert("Lỗi: Không tải được thư viện hoặc file config.");
+        Swal.fire("Lỗi", "Không tải được thư viện hoặc file config.", "error");
         $('#loading-overlay').fadeOut();
         return;
     }
@@ -17,19 +17,29 @@ $(document).ready(function() {
     // 2. Check Config
     if (CONFIG.SUPABASE_URL.includes('YOUR_')) {
         $('#loading-overlay').fadeOut();
-        alert("CHÀO MỪNG! Hãy mở file 'js/config.js' để điền API Key nhé.");
+        Swal.fire("Chào mừng!", "Hãy mở file 'js/config.js' để điền API Key nhé.", "info");
         return;
     }
 
     try {
         supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
     } catch (e) {
-        alert("Lỗi kết nối: " + e.message);
+        Swal.fire("Lỗi kết nối", e.message, "error");
         $('#loading-overlay').fadeOut();
         return;
     }
 
     initApp();
+
+    // Fix Map Resizing when switching tabs
+    const mapTab = document.querySelector('button[data-bs-target="#map-view"]');
+    if (mapTab) {
+        mapTab.addEventListener('shown.bs.tab', function () {
+            if (mapInstance) {
+                setTimeout(() => mapInstance.invalidateSize(), 100);
+            }
+        });
+    }
 });
 
 async function initApp() {
