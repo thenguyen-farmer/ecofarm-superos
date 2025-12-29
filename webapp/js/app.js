@@ -1,7 +1,8 @@
 // CONFIGURATION
 const SUPABASE_URL = 'https://aybopfqltybsfbqpxrsu.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5Ym9wZnFsdHlic2ZicXB4cnN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY5OTM0ODgsImV4cCI6MjA4MjU2OTQ4OH0.O9Su4haSDqay3jfjz7SYUab3bPQ2TzX4YGH9omlWj34';
-const GEMINI_API_KEY = 'AIzaSyBEVOIN-KkGaT08PWUF9ywOHFyWOhb0i6A'; // Placeholder
+const GEMINI_API_KEY = 'AIzaSyBEVOIN-KkGaT08PWUF9ywOHFyWOhb0i6A';
+const WEATHER_API_KEY = 'YOUR_OPENWEATHER_API_KEY'; // Đăng ký tại openweathermap.org
 
 let supabaseClient = null;
 let mapInstance = null;
@@ -59,6 +60,7 @@ async function initApp() {
         
         DashboardModule.init(trees, staff, inventory, financeData);
         ChatbotModule.init();
+        WeatherModule.init();
 
     } catch (e) {
         console.error("Init Error:", e);
@@ -67,6 +69,47 @@ async function initApp() {
         $('#loading-overlay').fadeOut();
     }
 }
+
+// ====================================================================================================
+// MODULE: WEATHER
+// ====================================================================================================
+const WeatherModule = {
+    init: async function() {
+        if (!WEATHER_API_KEY || WEATHER_API_KEY.includes('YOUR_')) {
+            $('#weather-widget').html('<div class="alert alert-warning small">Chưa cấu hình API Thời tiết.<br>Vui lòng đăng ký miễn phí tại openweathermap.org</div>');
+            return;
+        }
+
+        // Default: Ho Chi Minh City (Change lat/lon for farm location)
+        const lat = 10.7769, lon = 106.7009; 
+        const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}&units=metric&lang=vi`;
+
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+            
+            if (data.cod !== 200) throw new Error(data.message);
+
+            const iconUrl = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
+            $('#weather-widget').html(`
+                <div class="d-flex align-items-center justify-content-center">
+                    <img src="${iconUrl}" width="50">
+                    <div class="text-start">
+                        <h3 class="m-0">${Math.round(data.main.temp)}°C</h3>
+                        <div class="small">${data.weather[0].description}</div>
+                    </div>
+                </div>
+                <div class="row mt-2 small text-muted text-center">
+                    <div class="col">💧 ${data.main.humidity}%</div>
+                    <div class="col">💨 ${data.wind.speed} m/s</div>
+                </div>
+            `);
+        } catch (e) {
+            console.error("Weather Error:", e);
+            $('#weather-widget').html('<div class="small text-danger">Lỗi tải thời tiết.</div>');
+        }
+    }
+};
 
 // ====================================================================================================
 // MODULE: DASHBOARD
@@ -112,8 +155,8 @@ const DashboardModule = {
         // Render
         const taskList = $('#today-tasks');
         taskList.empty();
-        if (tasks.length === 0) taskList.append('<li class="list-group-item">Không có việc cần làm.</li>');
-        tasks.slice(0,5).forEach(t => taskList.append(`<li class="list-group-item"><i class="fas fa-check-circle text-success"></i> ${t}</li>`));
+        if (tasks.length === 0) taskList.append('<li class="list-group-item bg-transparent">Không có việc cần làm.</li>');
+        tasks.slice(0,5).forEach(t => taskList.append(`<li class="list-group-item bg-transparent"><i class="fas fa-check-circle text-success"></i> ${t}</li>`));
 
         const alertList = $('#dashboard-alerts');
         alertList.empty();
@@ -387,13 +430,18 @@ const MapModule = {
                 if (t.trang_thai === 'Bệnh') color = 'red';
                 if (t.trang_thai === 'Cần nước') color = 'blue';
                 
-                const marker = L.circleMarker([t.x, t.y], { color: color, radius: 6, fillOpacity: 0.8 }).addTo(mapInstance);
+                // Draggable Marker for Edit Position
+                const marker = L.circleMarker([t.x, t.y], { color: color, radius: 8, fillOpacity: 0.9, draggable: true }).addTo(mapInstance);
                 
-                // Popup with Delete Button
+                // Popup with Edit/Delete
                 const popupContent = `
                     <b>${t.loai}</b><br>
                     Trạng thái: ${t.trang_thai}<br>
-                    <button class="btn btn-sm btn-danger mt-1" onclick="MapModule.deleteTree('${t.id}')">Xóa Cây</button>
+                    Giai đoạn: ${t.giai_doan || '?'}<br>
+                    <div class="mt-2 btn-group btn-group-sm">
+                        <button class="btn btn-warning" onclick="MapModule.editTree('${t.id}', '${t.loai}', '${t.trang_thai}', '${t.giai_doan}')">Sửa</button>
+                        <button class="btn btn-danger" onclick="MapModule.deleteTree('${t.id}')">Xóa</button>
+                    </div>
                 `;
                 marker.bindPopup(popupContent);
             });
@@ -422,8 +470,27 @@ const MapModule = {
 
         if (error) alert("Lỗi thêm cây: " + error.message);
         else {
-            alert("Đã thêm cây!");
-            location.reload(); // Simple refresh to re-render
+            alert("Đã thêm cây! (Kéo thả chấm tròn để chỉnh lại vị trí)");
+            location.reload();
+        }
+    },
+
+    editTree: async function(id, oldName, oldStatus, oldStage) {
+        const name = prompt("Tên cây:", oldName);
+        if (!name) return;
+        const status = prompt("Trạng thái (Tốt/Bệnh/Cần nước):", oldStatus);
+        const stage = prompt("Giai đoạn (Cây con/Ra hoa/Thu hoạch):", oldStage);
+
+        const { error } = await supabaseClient.from('Ban_Do_So').update({ 
+            loai: name, 
+            trang_thai: status,
+            giai_doan: stage 
+        }).eq('id', id);
+
+        if (error) alert("Lỗi sửa: " + error.message);
+        else {
+            alert("Cập nhật thành công!");
+            location.reload();
         }
     },
 
@@ -453,16 +520,25 @@ const ChatbotModule = {
         $('#chat-history').append(`<div class="chat-msg chat-user">${msg}</div>`);
         input.val('');
         
-        // Mock AI Response
+        // 1. Search Knowledge Base (RAG)
+        const { data: knowledge } = await supabaseClient.from('Kho_Tri_Thuc').select('*');
+        let found = null;
+        if(knowledge) {
+            found = knowledge.find(k => k.tu_khoa && msg.toLowerCase().includes(k.tu_khoa.toLowerCase()));
+        }
+
+        let reply = "Tôi chưa hiểu câu hỏi này. Hãy thử thêm vào 'Kho Tri Thức' trong Cấu Hình.";
+        if (found) {
+            reply = `<b>${found.cau_tra_loi}</b>`;
+        } else if (msg.includes('thời tiết')) {
+            reply = "Đang tải dữ liệu thời tiết..."; // Weather module handles widget, here just text
+        }
+
         setTimeout(() => {
-            let reply = "Tôi đang học hỏi thêm dữ liệu. Vui lòng thử lại sau.";
-            if (msg.includes('thời tiết')) reply = "Hôm nay trời nắng đẹp, thích hợp bón phân.";
-            if (msg.includes('doanh thu')) reply = "Vui lòng xem tab Tài Chính để biết chi tiết.";
-            
             $('#chat-history').append(`<div class="chat-msg chat-bot">${reply}</div>`);
             const chatBox = document.getElementById('chat-history');
             chatBox.scrollTop = chatBox.scrollHeight;
-        }, 1000);
+        }, 500);
     }
 };
 
@@ -479,7 +555,10 @@ const ConfigModule = {
                     <td>${s.ten}</td>
                     <td>${s.chuc_vu}</td>
                     <td>${s.sdt}</td>
-                    <td><button class="btn btn-sm btn-outline-danger" onclick="ConfigModule.deleteItem('Nhan_Su', '${s.id}')">X</button></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="ConfigModule.editStaff('${s.id}', '${s.ten}', '${s.chuc_vu}')">Sửa</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="ConfigModule.deleteItem('Nhan_Su', '${s.id}')">X</button>
+                    </td>
                 </tr>`
             );
         });
@@ -494,7 +573,10 @@ const ConfigModule = {
                     <td>${j.ten_cong_viec}</td>
                     <td>${Number(j.don_gia).toLocaleString()}</td>
                     <td>${j.don_vi}</td>
-                    <td><button class="btn btn-sm btn-outline-danger" onclick="ConfigModule.deleteItem('Cau_Hinh_Cong_Viec', '${j.id}')">X</button></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="ConfigModule.editJob('${j.id}', '${j.ten_cong_viec}', '${j.don_gia}')">Sửa</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="ConfigModule.deleteItem('Cau_Hinh_Cong_Viec', '${j.id}')">X</button>
+                    </td>
                 </tr>`
             );
         });
@@ -509,12 +591,16 @@ const ConfigModule = {
                     <td>${e.ten_loai_chi}</td>
                     <td>${e.nhom}</td>
                     <td>${Number(e.dinh_muc_tien).toLocaleString()}</td>
-                    <td><button class="btn btn-sm btn-outline-danger" onclick="ConfigModule.deleteItem('Cau_Hinh_Chi_Phi', '${e.id}')">X</button></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="ConfigModule.editExpense('${e.id}', '${e.ten_loai_chi}', '${e.dinh_muc_tien}')">Sửa</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="ConfigModule.deleteItem('Cau_Hinh_Chi_Phi', '${e.id}')">X</button>
+                    </td>
                 </tr>`
             );
         });
     },
 
+    // --- ADD ---
     addStaff: async function() {
         const name = prompt("Tên nhân viên:");
         if (!name) return;
@@ -539,11 +625,50 @@ const ConfigModule = {
         await this.addItem('Cau_Hinh_Chi_Phi', { ten_loai_chi: name, nhom: group, dinh_muc_tien: price });
     },
 
+    addKnowledge: async function() {
+        const key = prompt("Từ khóa (VD: vàng lá):");
+        if (!key) return;
+        const ans = prompt("Câu trả lời:");
+        await this.addItem('Kho_Tri_Thuc', { tu_khoa: key, cau_tra_loi: ans });
+    },
+
+    // --- EDIT ---
+    editStaff: async function(id, oldName, oldRole) {
+        const name = prompt("Tên nhân viên:", oldName);
+        if (!name) return;
+        const role = prompt("Chức vụ:", oldRole);
+        await this.updateItem('Nhan_Su', id, { ten: name, chuc_vu: role });
+    },
+
+    editJob: async function(id, oldName, oldPrice) {
+        const name = prompt("Tên công việc:", oldName);
+        if (!name) return;
+        const price = prompt("Đơn giá:", oldPrice);
+        await this.updateItem('Cau_Hinh_Cong_Viec', id, { ten_cong_viec: name, don_gia: price });
+    },
+
+    editExpense: async function(id, oldName, oldPrice) {
+        const name = prompt("Tên loại chi:", oldName);
+        if (!name) return;
+        const price = prompt("Định mức tiền:", oldPrice);
+        await this.updateItem('Cau_Hinh_Chi_Phi', id, { ten_loai_chi: name, dinh_muc_tien: price });
+    },
+
+    // --- HELPERS ---
     addItem: async function(table, data) {
         const { error } = await supabaseClient.from(table).insert(data);
         if (error) alert("Lỗi: " + error.message);
         else {
             alert("Thêm thành công!");
+            location.reload();
+        }
+    },
+
+    updateItem: async function(table, id, data) {
+        const { error } = await supabaseClient.from(table).update(data).eq('id', id);
+        if (error) alert("Lỗi sửa: " + error.message);
+        else {
+            alert("Cập nhật thành công!");
             location.reload();
         }
     },
