@@ -1,9 +1,3 @@
-// CONFIGURATION
-const SUPABASE_URL = 'https://aybopfqltybsfbqpxrsu.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5Ym9wZnFsdHlic2ZicXB4cnN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY5OTM0ODgsImV4cCI6MjA4MjU2OTQ4OH0.O9Su4haSDqay3jfjz7SYUab3bPQ2TzX4YGH9omlWj34';
-const GEMINI_API_KEY = 'AIzaSyBEVOIN-KkGaT08PWUF9ywOHFyWOhb0i6A';
-const WEATHER_API_KEY = 'YOUR_OPENWEATHER_API_KEY'; // Đăng ký tại openweathermap.org
-
 let supabaseClient = null;
 let mapInstance = null;
 let mapMarkers = [];
@@ -13,20 +7,22 @@ let mapMarkers = [];
 // ====================================================================================================
 
 $(document).ready(function() {
-    if (typeof window.supabase === 'undefined') {
-        alert("Lỗi: Không tải được thư viện Supabase.");
+    // 1. Check Libraries
+    if (typeof window.supabase === 'undefined' || typeof CONFIG === 'undefined') {
+        alert("Lỗi: Không tải được thư viện hoặc file config.");
         $('#loading-overlay').fadeOut();
         return;
     }
 
-    if (SUPABASE_URL.includes('YOUR_')) {
+    // 2. Check Config
+    if (CONFIG.SUPABASE_URL.includes('YOUR_')) {
         $('#loading-overlay').fadeOut();
-        alert("Vui lòng cấu hình SUPABASE_URL và KEY trong file app.js");
+        alert("CHÀO MỪNG! Hãy mở file 'js/config.js' để điền API Key nhé.");
         return;
     }
 
     try {
-        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
     } catch (e) {
         alert("Lỗi kết nối: " + e.message);
         $('#loading-overlay').fadeOut();
@@ -75,14 +71,14 @@ async function initApp() {
 // ====================================================================================================
 const WeatherModule = {
     init: async function() {
-        if (!WEATHER_API_KEY || WEATHER_API_KEY.includes('YOUR_')) {
-            $('#weather-widget').html('<div class="alert alert-warning small">Chưa cấu hình API Thời tiết.<br>Vui lòng đăng ký miễn phí tại openweathermap.org</div>');
+        if (!CONFIG.OPENWEATHER_KEY || CONFIG.OPENWEATHER_KEY.includes('YOUR_')) {
+            $('#weather-widget').html('<div class="alert alert-warning small">Chưa cấu hình API Thời tiết.</div>');
             return;
         }
 
-        // Default: Ho Chi Minh City (Change lat/lon for farm location)
+        // Default: Ho Chi Minh City
         const lat = 10.7769, lon = 106.7009; 
-        const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}&units=metric&lang=vi`;
+        const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${CONFIG.OPENWEATHER_KEY}&units=metric&lang=vi`;
 
         try {
             const res = await fetch(url);
@@ -105,7 +101,6 @@ const WeatherModule = {
                 </div>
             `);
         } catch (e) {
-            console.error("Weather Error:", e);
             $('#weather-widget').html('<div class="small text-danger">Lỗi tải thời tiết.</div>');
         }
     }
@@ -235,10 +230,15 @@ const HRMModule = {
 
     submitBulkCheckin: async function() {
         const date = $('#checkin-date').val();
-        const shift = $('#checkin-shift').val();
+        if(!date) return alert("Chọn ngày!");
+        
         const jobOption = $('#checkin-job option:selected');
         const jobName = jobOption.val();
         const price = jobOption.data('price');
+        const bonus = Number($('#checkin-bonus').val()) || 0;
+        const fine = Number($('#checkin-fine').val()) || 0;
+        const rating = $('#checkin-rating').val();
+        const note = $('#checkin-note').val();
         
         const selectedStaff = [];
         $('.staff-check:checked').each(function() { selectedStaff.push($(this).val()); });
@@ -248,17 +248,21 @@ const HRMModule = {
         const rows = selectedStaff.map(id => ({
             ngay: date,
             id_nv: id,
-            buoi: shift,
             cong_viec: jobName,
             thanh_tien: price,
+            thuong: bonus,
+            phat: fine,
+            diem: rating,
+            ghi_chu: note,
             trang_thai_tt: 'Chua_TT'
         }));
 
         const { error } = await supabaseClient.from('Cham_Cong').insert(rows);
-        if (error) alert("Lỗi chấm công: " + error.message);
+        if (error) alert("Lỗi: " + error.message);
         else {
-            alert("Đã chấm công thành công!");
+            alert("Đã lưu chấm công!");
             this.loadAttendanceHistory();
+            this.checkTotalDebt();
         }
     },
 
@@ -316,7 +320,79 @@ const HRMModule = {
             alert("Thanh toán thành công!");
             this.checkUnpaidSalary(); // Refresh
             this.loadAttendanceHistory();
+            this.checkTotalDebt();
         }
+    },
+
+    renderSalaryReport: async function() {
+        // Default to current month if not set
+        let val = $('#salary-month').val();
+        if (!val) {
+            const now = new Date();
+            val = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+            $('#salary-month').val(val);
+        }
+        // val format: YYYY-MM
+        const start = `${val}-01`;
+        const [y, m] = val.split('-').map(Number);
+        const lastDay = new Date(y, m, 0).getDate(); // Get last day of month
+        const end = `${val}-${lastDay}`;
+        
+        const { data, error } = await supabaseClient.from('Cham_Cong')
+            .select(`*, Nhan_Su(ten)`)
+            .gte('ngay', start)
+            .lte('ngay', end);
+            
+        if (error) {
+            console.error("Report Error", error);
+            return;
+        }
+
+        const report = {}; // Map: StaffName -> { days, bonus, fine, total, paid }
+        
+        if (data) {
+            data.forEach(r => {
+                const name = r.Nhan_Su?.ten || 'Unknown';
+                if (!report[name]) report[name] = { days: 0, bonus: 0, fine: 0, total: 0, paid: 0 };
+                
+                // Formula: Base + Bonus - Fine
+                const realIncome = (r.thanh_tien || 0) + (r.thuong || 0) - (r.phat || 0);
+                
+                report[name].days++;
+                report[name].bonus += (r.thuong || 0);
+                report[name].fine += (r.phat || 0);
+                report[name].total += realIncome;
+                
+                if (r.trang_thai_tt === 'Da_TT') {
+                    report[name].paid += realIncome;
+                }
+            });
+        }
+        
+        const tbody = $('#table-salary-report tbody');
+        tbody.empty();
+        
+        if (Object.keys(report).length === 0) {
+            tbody.append('<tr><td colspan="5" class="text-center text-muted">Không có dữ liệu tháng này.</td></tr>');
+            return;
+        }
+
+        Object.keys(report).forEach(name => {
+            const r = report[name];
+            // Status: If Paid >= Total (allow tiny floating point diff), it's done.
+            const isPaid = r.paid >= r.total;
+            const status = isPaid ? '<span class="badge bg-success">Đã TT</span>' : `<span class="badge bg-danger">Nợ ${(r.total - r.paid).toLocaleString()}</span>`;
+            
+            tbody.append(`
+                <tr>
+                    <td>${name}</td>
+                    <td>${r.days}</td>
+                    <td><span class="text-success">+${r.bonus.toLocaleString()}</span> / <span class="text-danger">-${r.fine.toLocaleString()}</span></td>
+                    <td class="fw-bold">${r.total.toLocaleString()}</td>
+                    <td>${status}</td>
+                </tr>
+            `);
+        });
     }
 };
 
@@ -420,9 +496,34 @@ const FinanceModule = {
 const MapModule = {
     init: function(trees) {
         if (mapInstance) mapInstance.remove();
-        mapInstance = L.map('map').setView([10.7769, 106.7009], 18);
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(mapInstance);
         
+        // Default View or Center on First Tree
+        let center = [10.7769, 106.7009];
+        if (trees && trees.length > 0) {
+            center = [trees[0].x, trees[0].y];
+        }
+
+        mapInstance = L.map('map').setView(center, 19);
+        
+        // Use Google Hybrid if Configured, else fallback
+        L.tileLayer(CONFIG.MAP_TILE_URL, {
+            maxZoom: 22,
+            attribution: CONFIG.MAP_ATTRIBUTION
+        }).addTo(mapInstance);
+        
+        // Locate Me Button
+        L.control.locate = L.Control.extend({
+            onAdd: function(map) {
+                const btn = L.DomUtil.create('button', 'btn btn-light btn-sm mt-2 ms-2');
+                btn.innerHTML = '<i class="fas fa-crosshairs"></i>';
+                btn.onclick = () => {
+                    map.locate({setView: true, maxZoom: 20});
+                };
+                return btn;
+            }
+        });
+        new L.control.locate({ position: 'topleft' }).addTo(mapInstance);
+
         // Render Trees
         if (trees) {
             trees.forEach(t => {
@@ -506,39 +607,106 @@ const MapModule = {
 };
 
 // ====================================================================================================
-// MODULE: CHATBOT
+// MODULE: CHATBOT (Gemini Vision)
 // ====================================================================================================
 const ChatbotModule = {
     init: function() {
-        $('#chat-history').append(`<div class="chat-msg chat-bot">Xin chào! Tôi có thể giúp gì về nông trại hôm nay?</div>`);
+        $('#chat-history').append(`<div class="chat-msg chat-bot">Xin chào! Gửi ảnh hoặc câu hỏi để tôi hỗ trợ nhé.</div>`);
     },
+    
+    previewImage: function() {
+        const file = document.getElementById('chat-img').files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                $('#img-preview').attr('src', e.target.result);
+                $('#chat-preview').show();
+            }
+            reader.readAsDataURL(file);
+        }
+    },
+    
+    clearImage: function() {
+        $('#chat-img').val('');
+        $('#chat-preview').hide();
+    },
+
     sendChat: async function() {
         const input = $('#chat-input');
         const msg = input.val();
-        if (!msg) return;
-
-        $('#chat-history').append(`<div class="chat-msg chat-user">${msg}</div>`);
-        input.val('');
+        const fileInput = document.getElementById('chat-img');
+        const file = fileInput.files[0];
         
-        // 1. Search Knowledge Base (RAG)
-        const { data: knowledge } = await supabaseClient.from('Kho_Tri_Thuc').select('*');
-        let found = null;
-        if(knowledge) {
-            found = knowledge.find(k => k.tu_khoa && msg.toLowerCase().includes(k.tu_khoa.toLowerCase()));
-        }
+        if (!msg && !file) return;
 
-        let reply = "Tôi chưa hiểu câu hỏi này. Hãy thử thêm vào 'Kho Tri Thức' trong Cấu Hình.";
-        if (found) {
-            reply = `<b>${found.cau_tra_loi}</b>`;
-        } else if (msg.includes('thời tiết')) {
-            reply = "Đang tải dữ liệu thời tiết..."; // Weather module handles widget, here just text
+        // UI User Msg
+        let userHtml = `<div class="chat-msg chat-user">`;
+        if (file) {
+            const base64 = await this.fileToBase64(file);
+            userHtml += `<img src="${base64}" style="max-width:100%; border-radius:5px"><br>`;
         }
+        userHtml += `${msg}</div>`;
+        $('#chat-history').append(userHtml);
+        
+        input.val('');
+        this.clearImage();
+        $('#chat-history').append(`<div class="chat-msg chat-bot" id="chat-loading">...</div>`);
+        const chatBox = document.getElementById('chat-history');
+        chatBox.scrollTop = chatBox.scrollHeight;
 
-        setTimeout(() => {
+        // Call Gemini
+        try {
+            const reply = await this.callGemini(msg, file);
+            $('#chat-loading').remove();
             $('#chat-history').append(`<div class="chat-msg chat-bot">${reply}</div>`);
-            const chatBox = document.getElementById('chat-history');
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }, 500);
+        } catch (e) {
+            $('#chat-loading').remove();
+            $('#chat-history').append(`<div class="chat-msg chat-bot text-danger">Lỗi AI: ${e.message}</div>`);
+        }
+        chatBox.scrollTop = chatBox.scrollHeight;
+    },
+
+    fileToBase64: (file) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    }),
+
+    callGemini: async function(text, file) {
+        if (!CONFIG.GEMINI_KEY || CONFIG.GEMINI_KEY.includes('YOUR_')) return "Vui lòng cấu hình GEMINI_KEY trong file config.js";
+
+        // Fetch System Prompt
+        const { data: promptData } = await supabaseClient.from('Cau_Hinh_He_Thong').select('gia_tri').eq('ma_cau_hinh', 'PROMPT_BOT').single();
+        const systemInstruction = promptData ? promptData.gia_tri : "Bạn là chuyên gia nông nghiệp.";
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${CONFIG.GEMINI_KEY}`;
+        
+        const contents = [{
+            parts: [{ text: systemInstruction + "\n\nUser Question: " + text }]
+        }];
+
+        if (file) {
+            const base64Data = await this.fileToBase64(file);
+            // Gemini API needs pure base64 without prefix
+            const base64String = base64Data.split(',')[1]; 
+            contents[0].parts.push({
+                inline_data: {
+                    mime_type: file.type,
+                    data: base64String
+                }
+            });
+        }
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: contents })
+        });
+
+        const data = await response.json();
+        if (data.error) throw new Error(data.error.message);
+        return data.candidates[0].content.parts[0].text.replace(/\n/g, '<br>');
     }
 };
 
