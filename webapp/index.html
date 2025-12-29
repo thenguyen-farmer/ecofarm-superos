@@ -39,6 +39,10 @@
             display: flex; flex-direction: column;
             justify-content: center; align-items: center;
         }
+        .chat-box { height: 400px; overflow-y: auto; background: rgba(255,255,255,0.8); border-radius: 10px; padding: 10px; }
+        .chat-msg { margin-bottom: 5px; padding: 8px; border-radius: 8px; max-width: 80%; }
+        .chat-user { background: #d1e7dd; margin-left: auto; text-align: right; }
+        .chat-bot { background: #fff; border: 1px solid #ddd; }
     </style>
 </head>
 <body>
@@ -59,48 +63,177 @@
         <!-- Tabs -->
         <div class="glass-card">
             <ul class="nav nav-pills nav-fill" id="mainTab" role="tablist">
-                <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#home">Tổng Quan</button></li>
-                <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#map-view">Bản Đồ</button></li>
-                <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#hrm">Nhân Sự</button></li>
-                <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#finance">Tài Chính</button></li>
+                <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#home"><i class="fas fa-home"></i> Tổng Quan</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#map-view"><i class="fas fa-map"></i> Bản Đồ</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#hrm"><i class="fas fa-users"></i> Nhân Sự</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#finance"><i class="fas fa-coins"></i> Tài Chính</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#chat"><i class="fas fa-robot"></i> Chatbot</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#config"><i class="fas fa-cogs"></i> Cấu Hình</button></li>
             </ul>
         </div>
 
         <!-- Content -->
         <div class="tab-content">
-            <!-- DASHBOARD -->
+            <!-- 1. DASHBOARD -->
             <div class="tab-pane fade show active" id="home">
                 <div class="row">
                     <div class="col-md-4"><div class="glass-card text-center text-success"><h5>Cây Trồng</h5><h2 id="stat-tree">0</h2></div></div>
                     <div class="col-md-4"><div class="glass-card text-center text-primary"><h5>Nhân Sự</h5><h2 id="stat-staff">0</h2></div></div>
                     <div class="col-md-4"><div class="glass-card text-center text-danger"><h5>Tồn Kho</h5><h2 id="stat-inv">0</h2></div></div>
                 </div>
+                <div class="row">
+                    <div class="col-md-8">
+                         <div class="glass-card">
+                            <h5><i class="fas fa-chart-bar"></i> Biểu Đồ Tài Chính</h5>
+                            <canvas id="financeChart" style="height:200px"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="glass-card">
+                            <h5><i class="fas fa-exclamation-triangle"></i> Cảnh Báo</h5>
+                            <ul id="dashboard-alerts" class="list-group list-group-flush small"></ul>
+                        </div>
+                         <div class="glass-card mt-3">
+                            <h5><i class="fas fa-tasks"></i> Việc Cần Làm</h5>
+                            <ul id="today-tasks" class="list-group list-group-flush small"></ul>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <!-- MAP -->
+            <!-- 2. MAP -->
             <div class="tab-pane fade" id="map-view">
                 <div class="glass-card">
                     <div id="map"></div>
                 </div>
             </div>
 
-            <!-- HRM -->
+            <!-- 3. HRM -->
             <div class="tab-pane fade" id="hrm">
-                <div class="glass-card">
-                    <h5>Danh Sách Nhân Viên</h5>
-                    <table class="table" id="table-staff">
-                        <thead><tr><th>Tên</th><th>Chức Vụ</th><th>SĐT</th></tr></thead>
-                        <tbody></tbody>
-                    </table>
+                <div class="row">
+                    <div class="col-md-5">
+                        <div class="glass-card">
+                            <h5><i class="fas fa-user-check"></i> Chấm Công Nhanh</h5>
+                            <div class="mb-2"><input type="date" id="checkin-date" class="form-control" value="${new Date().toISOString().slice(0,10)}"></div>
+                            <div class="mb-2">
+                                <select id="checkin-job" class="form-select"></select>
+                            </div>
+                            <div class="mb-2">
+                                <select id="checkin-shift" class="form-select"><option value="Sáng">Sáng</option><option value="Chiều">Chiều</option></select>
+                            </div>
+                            <div class="mb-3 border p-2 rounded bg-white" style="max-height: 200px; overflow-y: auto;" id="checkin-staff-list"></div>
+                            <button class="btn btn-success w-100" onclick="HRMModule.submitBulkCheckin()">Lưu Chấm Công</button>
+                        </div>
+                    </div>
+                    <div class="col-md-7">
+                        <div class="glass-card">
+                            <h5>Lịch Sử Chấm Công</h5>
+                            <table class="table table-sm" id="table-attendance">
+                                <thead><tr><th>Ngày</th><th>Tên</th><th>Việc</th><th>Tiền</th><th>TT</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
             
-            <!-- FINANCE -->
+            <!-- 4. FINANCE -->
              <div class="tab-pane fade" id="finance">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="glass-card">
+                            <h5>Giao Dịch Mới</h5>
+                            <ul class="nav nav-tabs mb-2">
+                                <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#f-expense">Chi Phí</a></li>
+                                <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#f-salary">Trả Lương</a></li>
+                                <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#f-revenue">Nguồn Thu</a></li>
+                            </ul>
+                            <div class="tab-content">
+                                <!-- Expense Form -->
+                                <div class="tab-pane active" id="f-expense">
+                                    <div class="mb-2"><label>Hạng Mục</label><select id="expense-type" class="form-select"></select></div>
+                                    <div class="row mb-2">
+                                        <div class="col"><input type="number" id="expense-qty" class="form-control" placeholder="SL"></div>
+                                        <div class="col"><input type="number" id="expense-price" class="form-control" placeholder="Đơn giá"></div>
+                                    </div>
+                                    <div class="mb-2"><input type="number" id="expense-amount-manual" class="form-control" placeholder="Hoặc nhập Tổng tiền"></div>
+                                    <div class="mb-2"><input type="text" id="expense-note" class="form-control" placeholder="Ghi chú"></div>
+                                    <button class="btn btn-danger w-100" onclick="FinanceModule.submitExpense()">Lưu Phiếu Chi</button>
+                                </div>
+                                <!-- Salary Form -->
+                                <div class="tab-pane" id="f-salary">
+                                    <div class="mb-2"><select id="salary-staff" class="form-select" onchange="HRMModule.checkUnpaidSalary()"></select></div>
+                                    <div id="salary-info" class="alert alert-info p-2">Chọn NV để xem nợ.</div>
+                                    <button id="btn-pay-salary" class="btn btn-primary w-100" disabled onclick="HRMModule.paySalary()">Thanh Toán Lương</button>
+                                </div>
+                                <!-- Revenue Form -->
+                                <div class="tab-pane" id="f-revenue">
+                                    <div class="mb-2"><label>Nông Sản</label><input type="text" id="rev-type" class="form-control"></div>
+                                    <div class="row mb-2">
+                                        <div class="col"><input type="number" id="rev-qty" class="form-control" placeholder="Kg"></div>
+                                        <div class="col"><input type="number" id="rev-price" class="form-control" placeholder="Đơn giá"></div>
+                                    </div>
+                                    <button class="btn btn-success w-100" onclick="FinanceModule.submitRevenue()">Lưu Doanh Thu</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="glass-card">
+                            <h5>Lịch Sử Tài Chính</h5>
+                            <table class="table table-sm" id="table-finance">
+                                <thead><tr><th>Ngày</th><th>Loại</th><th>Mục</th><th>Tiền</th><th>Ghi Chú</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. CHATBOT -->
+            <div class="tab-pane fade" id="chat">
                 <div class="glass-card">
-                    <h5>Giao Dịch Gần Nhất</h5>
-                    <table class="table" id="table-finance">
-                        <thead><tr><th>Ngày</th><th>Loại</th><th>Số Tiền</th><th>Ghi Chú</th></tr></thead>
+                    <h5><i class="fas fa-robot"></i> Trợ Lý Nông Nghiệp</h5>
+                    <div id="chat-history" class="chat-box mb-3"></div>
+                    <div class="input-group">
+                        <input type="text" id="chat-input" class="form-control" placeholder="Hỏi về thời tiết, cây trồng...">
+                        <button class="btn btn-success" onclick="ChatbotModule.sendChat()">Gửi</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. CONFIG -->
+            <div class="tab-pane fade" id="config">
+                <!-- Staff -->
+                <div class="glass-card mb-3">
+                    <div class="d-flex justify-content-between mb-2">
+                        <h5><i class="fas fa-users-cog"></i> Nhân Sự</h5>
+                        <button class="btn btn-sm btn-primary" onclick="ConfigModule.addStaff()"><i class="fas fa-plus"></i> Thêm</button>
+                    </div>
+                    <table class="table table-sm" id="table-staff">
+                        <thead><tr><th>Tên</th><th>Chức Vụ</th><th>SĐT</th><th>#</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <!-- Jobs -->
+                <div class="glass-card mb-3">
+                    <div class="d-flex justify-content-between mb-2">
+                        <h5><i class="fas fa-briefcase"></i> Công Việc</h5>
+                        <button class="btn btn-sm btn-primary" onclick="ConfigModule.addJob()"><i class="fas fa-plus"></i> Thêm</button>
+                    </div>
+                    <table class="table table-sm" id="table-jobs">
+                        <thead><tr><th>Công Việc</th><th>Đơn Giá</th><th>Đơn Vị</th><th>#</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <!-- Expenses -->
+                <div class="glass-card mb-3">
+                    <div class="d-flex justify-content-between mb-2">
+                        <h5><i class="fas fa-file-invoice-dollar"></i> Loại Chi Phí</h5>
+                        <button class="btn btn-sm btn-primary" onclick="ConfigModule.addExpense()"><i class="fas fa-plus"></i> Thêm</button>
+                    </div>
+                    <table class="table table-sm" id="table-expenses">
+                        <thead><tr><th>Khoản Chi</th><th>Nhóm</th><th>Định Mức</th><th>#</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -112,6 +245,7 @@
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Chart.js Added -->
     <!-- Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- App Logic -->
