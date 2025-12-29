@@ -32,7 +32,7 @@
             margin-bottom: 20px;
             padding: 20px;
         }
-        #map { height: 500px; border-radius: 15px; }
+        #map { height: 75vh; border-radius: 15px; }
         #loading-overlay {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(255,255,255,0.9); z-index: 9999;
@@ -236,6 +236,14 @@
                         <thead><tr><th>Khoản Chi</th><th>Nhóm</th><th>Định Mức</th><th>#</th></tr></thead>
                         <tbody></tbody>
                     </table>
+                </div>
+                <!-- Knowledge Base -->
+                <div class="glass-card mb-3">
+                    <div class="d-flex justify-content-between mb-2">
+                        <h5><i class="fas fa-book"></i> Kho Tri Thức AI</h5>
+                        <button class="btn btn-sm btn-primary" onclick="ConfigModule.addKnowledge()"><i class="fas fa-plus"></i> Thêm</button>
+                    </div>
+                    <div class="text-muted small">Dữ liệu này sẽ được Chatbot sử dụng để trả lời câu hỏi.</div>
                 </div>
             </div>
         </div>
