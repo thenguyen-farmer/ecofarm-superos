@@ -124,12 +124,14 @@ const DashboardModule = {
         // 1. Stats
         $('#stat-tree').text(trees ? trees.length : 0);
         $('#stat-staff').text(staff ? staff.length : 0);
-        $('#stat-inv').text(inventory ? inventory.length : 0);
         
-        // 2. Chart
+        // 2. Salary Debt Widget
+        HRMModule.checkTotalDebt();
+
+        // 3. Chart
         this.renderChart(financeData);
 
-        // 3. Tasks & Alerts
+        // 4. Tasks & Alerts
         const tasks = [];
         const alerts = [];
         const today = new Date();
@@ -279,15 +281,27 @@ const HRMModule = {
     loadAttendanceHistory: async function() {
         const { data } = await supabaseClient.from('Cham_Cong').select(`*, Nhan_Su(ten)`).order('ngay', {ascending: false}).limit(20);
         const tbody = $('#table-attendance tbody');
+        if (tbody.length === 0) return; // Prevent crash if table missing
+        
         tbody.empty();
         if (data) {
             data.forEach(r => {
+                const total = (r.thanh_tien || 0) + (r.thuong || 0) - (r.phat || 0);
                 const status = r.trang_thai_tt === 'Da_TT' ? '<span class="badge bg-success">Đã Trả</span>' : '<span class="badge bg-warning">Chưa Trả</span>';
-                tbody.append(`<tr><td>${new Date(r.ngay).toLocaleDateString()}</td><td>${r.Nhan_Su?.ten}</td><td>${r.cong_viec}</td><td>${Number(r.thanh_tien).toLocaleString()}</td><td>${status}</td></tr>`);
+                tbody.append(`<tr><td>${new Date(r.ngay).toLocaleDateString()}</td><td>${r.Nhan_Su?.ten}</td><td>${r.cong_viec}</td><td>${total.toLocaleString()}</td><td>${status}</td></tr>`);
             });
         }
     },
     
+    checkTotalDebt: async function() {
+        const { data } = await supabaseClient.from('Cham_Cong').select('thanh_tien, thuong, phat').eq('trang_thai_tt', 'Chua_TT');
+        let total = 0;
+        if (data) {
+            data.forEach(r => total += (r.thanh_tien || 0) + (r.thuong || 0) - (r.phat || 0));
+        }
+        $('#stat-salary-debt').text(total.toLocaleString() + ' đ');
+    },
+
     checkUnpaidSalary: async function() {
         const id = $('#salary-staff').val();
         if(!id) return;
