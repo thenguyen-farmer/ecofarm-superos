@@ -2,78 +2,103 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EcoFarm SuperOS (Supabase Edition)</title>
-    <!-- Bootstrap 5 CSS -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EcoFarm Mobile Pro</title>
+    <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- FontAwesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <!-- Leaflet CSS -->
+    <!-- Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
     <style>
         :root {
-            --glass-bg: rgba(255, 255, 255, 0.75);
-            --glass-border: rgba(255, 255, 255, 0.5);
-            --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-            --primary-color: #2e7d32;
+            --app-bg: #f0f2f5;
+            --primary: #2e7d32;
+            --nav-height: 60px;
         }
         body {
-            background: linear-gradient(135deg, #a8ff78 0%, #78ffd6 100%);
-            min-height: 100vh;
-            font-family: 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--app-bg);
+            padding-bottom: calc(var(--nav-height) + 20px); /* Space for bottom nav */
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
+        
+        /* Mobile Card */
         .glass-card {
-            background: var(--glass-bg);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            border: 1px solid var(--glass-border);
-            box-shadow: var(--glass-shadow);
-            margin-bottom: 20px;
-            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            padding: 15px;
+            margin-bottom: 15px;
+            border: none;
         }
-        #map { height: 75vh; border-radius: 15px; }
+
+        /* Fixed Bottom Nav */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            height: var(--nav-height);
+            background: white;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 1000;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        .nav-btn {
+            border: none; background: none;
+            color: #999;
+            font-size: 12px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .nav-btn.active { color: var(--primary); font-weight: bold; }
+        .nav-btn i { font-size: 20px; margin-bottom: 2px; }
+
+        /* Header */
+        .app-header {
+            position: sticky; top: 0;
+            background: white;
+            z-index: 900;
+            padding: 10px 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            margin-bottom: 15px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        #map { height: 70vh; border-radius: 12px; }
+        
+        /* Chat UI */
+        .chat-box { height: 60vh; overflow-y: auto; background: #f8f9fa; border-radius: 12px; padding: 10px; }
+        .chat-msg { max-width: 85%; padding: 10px; border-radius: 15px; margin-bottom: 8px; font-size: 14px; }
+        .chat-user { background: #d1e7dd; margin-left: auto; border-bottom-right-radius: 2px; }
+        .chat-bot { background: white; border: 1px solid #eee; border-bottom-left-radius: 2px; }
+
         #loading-overlay {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(255,255,255,0.9); z-index: 9999;
+            background: white; z-index: 9999;
             display: flex; flex-direction: column;
             justify-content: center; align-items: center;
         }
-        .chat-box { height: 400px; overflow-y: auto; background: rgba(255,255,255,0.8); border-radius: 10px; padding: 10px; }
-        .chat-msg { margin-bottom: 5px; padding: 8px; border-radius: 8px; max-width: 80%; }
-        .chat-user { background: #d1e7dd; margin-left: auto; text-align: right; }
-        .chat-bot { background: #fff; border: 1px solid #ddd; }
     </style>
 </head>
 <body>
 
     <!-- Loading Overlay -->
     <div id="loading-overlay">
-        <div class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;"></div>
-        <h4 class="mt-3">Đang kết nối Supabase Cloud...</h4>
+        <div class="spinner-border text-success" role="status"></div>
+        <div class="mt-3 text-muted fw-bold">EcoFarm Mobile</div>
     </div>
 
-    <div class="container-fluid p-4">
-        <!-- Header -->
-        <div class="glass-card d-flex justify-content-between align-items-center">
-            <h3 class="m-0 text-success"><i class="fas fa-leaf me-2"></i>EcoFarm SuperOS (Supabase)</h3>
-            <button class="btn btn-outline-success btn-sm" onclick="location.reload()"><i class="fas fa-sync"></i> Refresh</button>
-        </div>
+    <!-- Header -->
+    <div class="app-header">
+        <h5 class="m-0 text-success fw-bold"><i class="fas fa-leaf"></i> EcoFarm</h5>
+        <button class="btn btn-sm btn-light text-muted" onclick="location.reload()"><i class="fas fa-sync"></i></button>
+    </div>
 
-        <!-- Tabs -->
-        <div class="glass-card">
-            <ul class="nav nav-pills nav-fill" id="mainTab" role="tablist">
-                <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#home"><i class="fas fa-home"></i> Tổng Quan</button></li>
-                <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#map-view"><i class="fas fa-map"></i> Bản Đồ</button></li>
-                <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#hrm"><i class="fas fa-users"></i> Nhân Sự</button></li>
-                <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#finance"><i class="fas fa-coins"></i> Tài Chính</button></li>
-                <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#chat"><i class="fas fa-robot"></i> Chatbot</button></li>
-                <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#config"><i class="fas fa-cogs"></i> Cấu Hình</button></li>
-            </ul>
-        </div>
-
-        <!-- Content -->
-        <div class="tab-content">
+    <div class="container-fluid">
+        <!-- Content Area -->
+        <div class="tab-content" id="mainTabContent">
             <!-- 1. DASHBOARD -->
             <div class="tab-pane fade show active" id="home">
                 <div class="row">
@@ -227,60 +252,60 @@
 
             <!-- 6. CONFIG -->
             <div class="tab-pane fade" id="config">
-                <!-- Staff -->
-                <div class="glass-card mb-3">
-                    <div class="d-flex justify-content-between mb-2">
-                        <h5><i class="fas fa-users-cog"></i> Nhân Sự</h5>
-                        <button class="btn btn-sm btn-primary" onclick="ConfigModule.addStaff()"><i class="fas fa-plus"></i> Thêm</button>
+                <div class="glass-card">
+                    <h5 class="mb-3 text-muted">QUẢN LÝ HỆ THỐNG</h5>
+                    
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary text-start" onclick="$('#cfg-staff').toggle()"><i class="fas fa-users-cog me-2"></i> Nhân Sự</button>
+                        <div id="cfg-staff" style="display:none">
+                            <button class="btn btn-sm btn-primary mb-2 w-100" onclick="ConfigModule.addStaff()">+ Thêm Nhân Viên</button>
+                            <table class="table table-sm" id="table-staff"><thead><tr><th>Tên</th><th>SĐT</th><th>#</th></tr></thead><tbody></tbody></table>
+                        </div>
+
+                        <button class="btn btn-outline-success text-start" onclick="$('#cfg-jobs').toggle()"><i class="fas fa-briefcase me-2"></i> Công Việc</button>
+                        <div id="cfg-jobs" style="display:none">
+                            <button class="btn btn-sm btn-success mb-2 w-100" onclick="ConfigModule.addJob()">+ Thêm Công Việc</button>
+                            <table class="table table-sm" id="table-jobs"><thead><tr><th>Việc</th><th>Giá</th><th>#</th></tr></thead><tbody></tbody></table>
+                        </div>
+
+                        <button class="btn btn-outline-warning text-start" onclick="$('#cfg-exps').toggle()"><i class="fas fa-coins me-2"></i> Loại Chi Phí</button>
+                        <div id="cfg-exps" style="display:none">
+                            <button class="btn btn-sm btn-warning mb-2 w-100" onclick="ConfigModule.addExpense()">+ Thêm Loại Chi</button>
+                            <table class="table table-sm" id="table-expenses"><thead><tr><th>Loại</th><th>Nhóm</th><th>#</th></tr></thead><tbody></tbody></table>
+                        </div>
+
+                        <button class="btn btn-outline-info text-start" onclick="ConfigModule.addKnowledge()"><i class="fas fa-book me-2"></i> Thêm Tri Thức AI</button>
                     </div>
-                    <table class="table table-sm" id="table-staff">
-                        <thead><tr><th>Tên</th><th>Chức Vụ</th><th>SĐT</th><th>#</th></tr></thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-                <!-- Jobs -->
-                <div class="glass-card mb-3">
-                    <div class="d-flex justify-content-between mb-2">
-                        <h5><i class="fas fa-briefcase"></i> Công Việc</h5>
-                        <button class="btn btn-sm btn-primary" onclick="ConfigModule.addJob()"><i class="fas fa-plus"></i> Thêm</button>
-                    </div>
-                    <table class="table table-sm" id="table-jobs">
-                        <thead><tr><th>Công Việc</th><th>Đơn Giá</th><th>Đơn Vị</th><th>#</th></tr></thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-                <!-- Expenses -->
-                <div class="glass-card mb-3">
-                    <div class="d-flex justify-content-between mb-2">
-                        <h5><i class="fas fa-file-invoice-dollar"></i> Loại Chi Phí</h5>
-                        <button class="btn btn-sm btn-primary" onclick="ConfigModule.addExpense()"><i class="fas fa-plus"></i> Thêm</button>
-                    </div>
-                    <table class="table table-sm" id="table-expenses">
-                        <thead><tr><th>Khoản Chi</th><th>Nhóm</th><th>Định Mức</th><th>#</th></tr></thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-                <!-- Knowledge Base -->
-                <div class="glass-card mb-3">
-                    <div class="d-flex justify-content-between mb-2">
-                        <h5><i class="fas fa-book"></i> Kho Tri Thức AI</h5>
-                        <button class="btn btn-sm btn-primary" onclick="ConfigModule.addKnowledge()"><i class="fas fa-plus"></i> Thêm</button>
-                    </div>
-                    <div class="text-muted small">Dữ liệu này sẽ được Chatbot sử dụng để trả lời câu hỏi.</div>
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Fixed Bottom Navigation -->
+    <div class="bottom-nav">
+        <button class="nav-btn active" data-bs-toggle="pill" data-bs-target="#home" onclick="switchTab(this)"><i class="fas fa-home"></i><span>Home</span></button>
+        <button class="nav-btn" data-bs-toggle="pill" data-bs-target="#map-view" onclick="switchTab(this)"><i class="fas fa-map"></i><span>Map</span></button>
+        <button class="nav-btn" data-bs-toggle="pill" data-bs-target="#hrm" onclick="switchTab(this)"><i class="fas fa-users"></i><span>HRM</span></button>
+        <button class="nav-btn" data-bs-toggle="pill" data-bs-target="#finance" onclick="switchTab(this)"><i class="fas fa-coins"></i><span>Tiền</span></button>
+        <button class="nav-btn" data-bs-toggle="pill" data-bs-target="#chat" onclick="switchTab(this)"><i class="fas fa-robot"></i><span>Bot</span></button>
+        <button class="nav-btn" data-bs-toggle="pill" data-bs-target="#config" onclick="switchTab(this)"><i class="fas fa-cogs"></i><span>Cấu hình</span></button>
     </div>
 
     <!-- Scripts -->
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Chart.js Added -->
-    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script> <!-- Modern Alerts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- App Config & Logic -->
+    
     <script src="js/config.js"></script>
     <script src="js/app.js"></script>
+    <script>
+        function switchTab(btn) {
+            $('.nav-btn').removeClass('active');
+            $(btn).addClass('active');
+        }
+    </script>
 </body>
 </html>
