@@ -3,12 +3,36 @@
 const SUPABASE_URL = 'https://aybopfqltybsfbqpxrsu.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5Ym9wZnFsdHlic2ZicXB4cnN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY5OTM0ODgsImV4cCI6MjA4MjU2OTQ4OH0.O9Su4haSDqay3jfjz7SYUab3bPQ2TzX4YGH9omlWj34';
 
-// Initialize Supabase
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+// Initialize Supabase Client
+let supabaseClient = null;
 
 let mapInstance = null;
 
 $(document).ready(function() {
+    // Check if Supabase library is loaded
+    if (typeof window.supabase === 'undefined') {
+        alert("Lỗi: Không tải được thư viện Supabase. Vui lòng kiểm tra kết nối mạng hoặc chặn quảng cáo.");
+        $('#loading-overlay').fadeOut();
+        return;
+    }
+
+    // Check if Config is set
+    if (SUPABASE_URL.includes('YOUR_') || SUPABASE_KEY.includes('YOUR_')) {
+        $('#loading-overlay').fadeOut();
+        alert("CHÀO MỪNG BẠN ĐẾN VỚI ECOFARM!\n\nĐể sử dụng, bạn cần kết nối Database:\n1. Mở file 'js/app.js'\n2. Điền SUPABASE_URL và SUPABASE_KEY của bạn.\n3. Lưu lại và tải lại trang.");
+        return;
+    }
+
+    try {
+        // Initialize
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    } catch (e) {
+        console.error("Init Error:", e);
+        alert("Lỗi khởi tạo Supabase: " + e.message);
+        $('#loading-overlay').fadeOut();
+        return;
+    }
+
     initApp();
 });
 
@@ -16,14 +40,14 @@ async function initApp() {
     $('#loading-overlay').fadeIn();
     try {
         // 1. Check Connection & Fetch Configs
-        const { data: staff, error: errStaff } = await supabase.from('Nhan_Su').select('*');
+        const { data: staff, error: errStaff } = await supabaseClient.from('Nhan_Su').select('*');
         if (errStaff) throw errStaff;
         
-        const { data: trees, error: errTree } = await supabase.from('Ban_Do_So').select('*');
+        const { data: trees, error: errTree } = await supabaseClient.from('Ban_Do_So').select('*');
         if (errTree) throw errTree;
 
-        const { data: inv } = await supabase.from('Kho_Vat_Tu').select('*');
-        const { data: fin } = await supabase.from('Tai_Chinh').select('*').limit(10).order('ngay', { ascending: false });
+        const { data: inv } = await supabaseClient.from('Kho_Vat_Tu').select('*');
+        const { data: fin } = await supabaseClient.from('Tai_Chinh').select('*').limit(10).order('ngay', { ascending: false });
 
         // 2. Render UI
         $('#stat-tree').text(trees.length);
