@@ -87,6 +87,20 @@ const ConfigModule = {
         await this.addItem('Kho_Tri_Thuc', { tu_khoa: key, cau_tra_loi: ans });
     },
 
+    renderKnowledgeTable: function(data) {
+        const tbody = $('#table-knowledge tbody');
+        tbody.empty();
+        if(data) data.forEach(k => {
+            tbody.append(`
+                <tr>
+                    <td>${k.tu_khoa}</td>
+                    <td>${k.cau_tra_loi.substring(0,30)}...</td>
+                    <td><button class="btn btn-sm btn-outline-danger" onclick="ConfigModule.deleteItem('Kho_Tri_Thuc', '${k.id}')">X</button></td>
+                </tr>
+            `);
+        });
+    },
+
     // --- EDIT ACTIONS ---
     editStaff: async function(id, oldName, oldRole) {
         const name = prompt("Tên nhân viên:", oldName);
