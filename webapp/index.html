@@ -150,6 +150,15 @@
                             <h5><i class="fas fa-tasks"></i> Việc Hôm Nay</h5>
                             <ul id="today-tasks" class="list-group list-group-flush small"></ul>
                         </div>
+                        <div class="glass-card mt-3">
+                            <h5 class="text-info"><i class="fas fa-map-signs"></i> Chú Thích Map</h5>
+                            <div class="small">
+                                <span class="badge bg-success">Tốt</span>
+                                <span class="badge bg-danger">Bệnh</span>
+                                <span class="badge bg-primary">Cần nước</span>
+                                <span class="badge bg-warning text-dark">Thu hoạch</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -228,6 +237,7 @@
                             <div class="tab-content">
                                 <!-- Expense Form -->
                                 <div class="tab-pane active" id="f-expense">
+                                    <div class="mb-2"><label>Ngày</label><input type="date" id="expense-date" class="form-control"></div>
                                     <div class="mb-2"><label>Hạng Mục</label><select id="expense-type" class="form-select"></select></div>
                                     <div class="row mb-2">
                                         <div class="col"><input type="number" id="expense-qty" class="form-control" placeholder="SL"></div>
@@ -311,6 +321,12 @@
                         </div>
 
                         <button class="btn btn-outline-info text-start" onclick="ConfigModule.addKnowledge()"><i class="fas fa-book me-2"></i> Thêm Tri Thức AI</button>
+                        
+                        <div class="mt-3 border-top pt-2">
+                            <label class="small text-muted">Cấu Hình AI System Prompt</label>
+                            <textarea id="bot-system-prompt" class="form-control mb-2" rows="3" placeholder="VD: Bạn là chuyên gia nông nghiệp..."></textarea>
+                            <button class="btn btn-sm btn-dark w-100" onclick="ChatbotModule.updateSettings()">Lưu Prompt</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -335,8 +351,19 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script> <!-- Modern Alerts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
+    <!-- Modules -->
     <script src="js/config.js"></script>
+    <script src="js/modules/core.js"></script>
+    <script src="js/modules/dashboard.js"></script>
+    <script src="js/modules/map.js"></script>
+    <script src="js/modules/hrm.js"></script>
+    <script src="js/modules/finance.js"></script>
+    <script src="js/modules/chatbot.js"></script>
+    <script src="js/modules/settings.js"></script>
+    
+    <!-- Main Entry -->
     <script src="js/app.js"></script>
+
     <script>
         function switchTab(btn) {
             // 1. Visual Active State
