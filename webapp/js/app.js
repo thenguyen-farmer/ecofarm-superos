@@ -20,8 +20,8 @@ async function initApp() {
     let trees = [], staff = [], jobs = [], expenses = [], inventory = [], finance = [], knowledge = [];
 
     try {
-        // Parallel Loading for Speed
-        const results = await Promise.all([
+        // Parallel Loading with Timeout to prevent hanging
+        const loadData = Promise.all([
             CoreModule.supabase.from('Nhan_Su').select('*'),
             CoreModule.supabase.from('Cau_Hinh_Cong_Viec').select('*'),
             CoreModule.supabase.from('Cau_Hinh_Chi_Phi').select('*'),
@@ -30,6 +30,13 @@ async function initApp() {
             CoreModule.supabase.from('Tai_Chinh').select('*').order('ngay', { ascending: false }).limit(50),
             CoreModule.supabase.from('Kho_Tri_Thuc').select('*')
         ]);
+
+        // Timeout Promise (3 seconds)
+        const timeout = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Connection timed out')), 3000)
+        );
+
+        const results = await Promise.race([loadData, timeout]);
         
         // Assign Data
         staff = results[0].data || [];
