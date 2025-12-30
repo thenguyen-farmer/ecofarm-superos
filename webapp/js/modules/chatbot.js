@@ -68,7 +68,21 @@ const ChatbotModule = {
 
         // Fetch System Prompt
         const { data: promptData } = await CoreModule.supabase.from('Cau_Hinh_He_Thong').select('gia_tri').eq('ma_cau_hinh', 'PROMPT_BOT').single();
-        const systemInstruction = promptData ? promptData.gia_tri : "Bạn là chuyên gia nông nghiệp.";
+        let basePrompt = promptData ? promptData.gia_tri : "Bạn là chuyên gia nông nghiệp.";
+        
+        // Enhance with Multi-Agent Persona
+        const systemInstruction = `
+        ${basePrompt}
+        
+        [AI TEAM PROTOCOL ACTIVATED]
+        You are acting as a team of agricultural experts (Agronomist, Economist, Plant Pathologist).
+        1. ANALYZE the user's input/image carefully.
+        2. CONSULT your knowledge base.
+        3. CRITIQUE potential advice for risks (weather, cost).
+        4. SYNTHESIZE the final best answer in Vietnamese.
+        
+        Format your response clearly.
+        `;
 
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${CONFIG.GEMINI_KEY}`;
         
