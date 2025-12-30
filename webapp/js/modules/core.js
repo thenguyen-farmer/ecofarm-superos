@@ -39,7 +39,9 @@ const CoreModule = {
     // Hide Loading
     hideLoading: function() {
         $('#loading-overlay').fadeOut();
-        Swal.close();
+        // Do not close Swal here if it's an error alert
+        const isError = Swal.getPopup() && Swal.getPopup().classList.contains('swal2-icon-error');
+        if (!isError) Swal.close();
     },
 
     // Generic Toast
