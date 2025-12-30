@@ -10,6 +10,6 @@ const CONFIG = {
     GEMINI_KEY: 'AIzaSyCNEiW7Lx5Cz4xl1Sm8L2HY9ksJq0nYKGs', // Lấy tại makersuite.google.com
     
     // Cấu hình Bản đồ mặc định (Google Hybrid)
-    MAP_TILE_URL: 'https://mt0.google.com/vt/lyrs=y&hl=en&x={x}&y={y}&z={z}',
-    MAP_ATTRIBUTION: 'Google Hybrid'
+    AP_TILE_URL: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    MAP_ATTRIBUTION: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 };
