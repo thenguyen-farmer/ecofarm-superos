@@ -4,15 +4,15 @@ const MapModule = {
     bulkMode: false,
     selectedType: 'Sầu riêng',
 
-    TYPE_COLORS: {
-        'Sầu riêng': '#2e7d32', // Green
-        'Cà phê': '#795548', // Brown
-        'Điều': '#ff5722', // Orange
-        'Dừa': '#009688', // Teal
-        'Tiêu': '#333333', // Dark
-        'Bơ': '#8bc34a', // Light Green
-        'Tủ điện': '#f44336', // Red Infrastructure
-        'Ống nước': '#03a9f4' // Blue Infrastructure
+    TYPE_ICONS: {
+        'Sầu riêng': 'fa-tree',
+        'Cà phê': 'fa-coffee',
+        'Điều': 'fa-leaf',
+        'Dừa': 'fa-tree',
+        'Tiêu': 'fa-circle',
+        'Bơ': 'fa-apple-alt',
+        'Tủ điện': 'fa-bolt', 
+        'Ống nước': 'fa-tint'
     },
     
     init: function(trees) {
@@ -50,28 +50,51 @@ const MapModule = {
 
     renderMarkers: function(trees) {
         trees.forEach(t => {
-            // Determine Color based on Type
-            let color = this.TYPE_COLORS[t.loai] || '#999'; // Default Gray
+            // Determine Icon Class
+            let iconClass = this.TYPE_ICONS[t.loai] || 'fa-tree';
             
-            // Override by Health Status (Only for trees, not infra)
-            if (!['Tủ điện', 'Ống nước'].includes(t.loai)) {
-                if (t.trang_thai === 'Bệnh') color = '#f44336'; // Bright Red
-                if (t.trang_thai === 'Cần nước') color = '#2196f3'; // Bright Blue
-            }
+            // Determine Color based on Status
+            let color = '#2e7d32'; // Default Good (Green)
+            if (t.trang_thai === 'Bệnh') color = '#f44336'; // Red
+            if (t.trang_thai === 'Cần nước') color = '#2196f3'; // Blue
+            if (t.trang_thai === 'Thu hoạch') color = '#ff9800'; // Orange
+            
+            // Infrastructure always dark/specific color
+            if (t.loai === 'Tủ điện') color = '#d32f2f';
+            if (t.loai === 'Ống nước') color = '#0288d1';
+
+            // Create DivIcon
+            const iconHtml = `<div style="
+                background-color: ${color};
+                width: 30px; height: 30px;
+                border-radius: 50%;
+                display: flex; justify-content: center; align-items: center;
+                color: white; border: 2px solid white;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            "><i class="fas ${iconClass}" style="font-size: 14px;"></i></div>`;
+
+            const customIcon = L.divIcon({
+                html: iconHtml,
+                className: 'custom-tree-icon', // Dummy class to prevent default styles
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
 
             // Marker
-            const marker = L.circleMarker([t.x, t.y], { 
-                color: 'white', weight: 1, 
-                fillColor: color, fillOpacity: 0.9, radius: 7, 
+            const marker = L.marker([t.x, t.y], { 
+                icon: customIcon,
                 draggable: true 
             }).addTo(this.map);
             
             marker.bindPopup(`
-                <b>${t.loai}</b><br>
-                <div class="badge bg-light text-dark border">${t.trang_thai}</div>
-                <div class="mt-2 btn-group btn-group-sm">
-                    <button class="btn btn-outline-primary" onclick="MapModule.editTree('${t.id}')">Sửa</button>
-                    <button class="btn btn-outline-danger" onclick="MapModule.deleteTree('${t.id}')">Xóa</button>
+                <div class="text-center">
+                    <strong class="text-success">${t.loai}</strong>
+                    <div class="badge bg-light text-dark border my-1">${t.trang_thai}</div>
+                    <div class="small text-muted mb-2">${t.ghi_chu || ''}</div>
+                    <div class="btn-group btn-group-sm w-100">
+                        <button class="btn btn-outline-primary" onclick="MapModule.editTree('${t.id}')"><i class="fas fa-edit"></i> Sửa</button>
+                        <button class="btn btn-outline-danger" onclick="MapModule.deleteTree('${t.id}')"><i class="fas fa-trash"></i> Xóa</button>
+                    </div>
                 </div>
             `);
 
