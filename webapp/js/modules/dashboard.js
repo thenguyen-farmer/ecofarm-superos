@@ -1,5 +1,7 @@
 // DASHBOARD MODULE: Weather, Stats, Alerts
 const DashboardModule = {
+    chartInstance: null,
+
     init: function(trees, staff, inventory, financeData) {
         // 1. Stats
         $('#stat-tree').text(trees ? trees.length : 0);
@@ -71,16 +73,24 @@ const DashboardModule = {
         const ctx = document.getElementById('financeChart');
         if (!ctx || !data) return;
 
+        // Destroy old instance to prevent overlay/error
+        if (this.chartInstance) {
+            this.chartInstance.destroy();
+        }
+
         const months = {};
-        data.forEach(d => {
-            const m = new Date(d.ngay).toLocaleDateString('vi-VN', { month: 'short' });
-            if (!months[m]) months[m] = { thu: 0, chi: 0 };
-            if (d.loai === 'Thu') months[m].thu += Number(d.so_tien);
-            else months[m].chi += Number(d.so_tien);
-        });
+        if (data) {
+            data.forEach(d => {
+                const m = new Date(d.ngay).toLocaleDateString('vi-VN', { month: 'short' });
+                if (!months[m]) months[m] = { thu: 0, chi: 0 };
+                if (d.loai === 'Thu') months[m].thu += Number(d.so_tien);
+                else months[m].chi += Number(d.so_tien);
+            });
+        }
 
         const labels = Object.keys(months);
-        new Chart(ctx, {
+        
+        this.chartInstance = new Chart(ctx, {
             type: 'bar',
             data: {
                 labels: labels,
