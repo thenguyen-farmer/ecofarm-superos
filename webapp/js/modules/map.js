@@ -1,36 +1,127 @@
 // MAP MODULE: Advanced Tree Management
 const MapModule = {
     map: null,
+    bulkMode: false,
+    selectedType: 'Sầu riêng',
+
+    TYPE_COLORS: {
+        'Sầu riêng': '#2e7d32', // Green
+        'Cà phê': '#795548', // Brown
+        'Điều': '#ff5722', // Orange
+        'Dừa': '#009688', // Teal
+        'Tiêu': '#333333', // Dark
+        'Bơ': '#8bc34a', // Light Green
+        'Tủ điện': '#f44336', // Red Infrastructure
+        'Ống nước': '#03a9f4' // Blue Infrastructure
+    },
     
     init: function(trees) {
         if (this.map) this.map.remove();
         
-        // 1. Setup Map
+        // Default View
         let center = [10.7769, 106.7009];
         if (trees && trees.length > 0) center = [trees[0].x, trees[0].y];
-        
+
         this.map = L.map('map').setView(center, 19);
         L.tileLayer(CONFIG.MAP_TILE_URL, { maxZoom: 22, attribution: CONFIG.MAP_ATTRIBUTION }).addTo(this.map);
         
-        // Locate Me Control
-        const locateBtn = L.DomUtil.create('button', 'btn btn-light btn-sm mt-2 ms-2');
+        // Locate Me
+        const locateBtn = L.DomUtil.create('button', 'btn btn-light btn-sm mt-2 ms-2 shadow');
         locateBtn.innerHTML = '<i class="fas fa-crosshairs"></i>';
         locateBtn.onclick = () => this.map.locate({setView: true, maxZoom: 20});
         
-        // Add to a custom control container if needed, or just append to map container
-        // Simple way: Add standard Leaflet control
-        L.Control.Locate = L.Control.extend({
-            onAdd: () => locateBtn
-        });
+        L.Control.Locate = L.Control.extend({ onAdd: () => locateBtn });
         new L.Control.Locate({ position: 'topleft' }).addTo(this.map);
 
-        // 2. Render Markers
+        // Render Trees
         if (trees) this.renderMarkers(trees);
 
-        // 3. Events
+        // Map Click (Single vs Bulk)
         this.map.on('click', (e) => {
-            if (confirm("Thêm cây mới tại vị trí này?")) this.addTree(e.latlng.lat, e.latlng.lng);
+            if (this.bulkMode) {
+                this.addTree(e.latlng.lat, e.latlng.lng, this.selectedType);
+            } else {
+                if (confirm("Thêm đối tượng mới tại đây?")) {
+                    this.addTree(e.latlng.lat, e.latlng.lng, this.selectedType);
+                }
+            }
         });
+    },
+
+    renderMarkers: function(trees) {
+        trees.forEach(t => {
+            // Determine Color based on Type
+            let color = this.TYPE_COLORS[t.loai] || '#999'; // Default Gray
+            
+            // Override by Health Status (Only for trees, not infra)
+            if (!['Tủ điện', 'Ống nước'].includes(t.loai)) {
+                if (t.trang_thai === 'Bệnh') color = '#f44336'; // Bright Red
+                if (t.trang_thai === 'Cần nước') color = '#2196f3'; // Bright Blue
+            }
+
+            // Marker
+            const marker = L.circleMarker([t.x, t.y], { 
+                color: 'white', weight: 1, 
+                fillColor: color, fillOpacity: 0.9, radius: 7, 
+                draggable: true 
+            }).addTo(this.map);
+            
+            marker.bindPopup(`
+                <b>${t.loai}</b><br>
+                <div class="badge bg-light text-dark border">${t.trang_thai}</div>
+                <div class="mt-2 btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary" onclick="MapModule.editTree('${t.id}')">Sửa</button>
+                    <button class="btn btn-outline-danger" onclick="MapModule.deleteTree('${t.id}')">Xóa</button>
+                </div>
+            `);
+
+            // Drag End: Update DB
+            marker.on('dragend', async (e) => {
+                const { lat, lng } = e.target.getLatLng();
+                await CoreModule.supabase.from('Ban_Do_So').update({ x: lat, y: lng }).eq('id', t.id);
+                CoreModule.toast('success', 'Đã lưu vị trí mới');
+            });
+        });
+    },
+
+    addTree: async function(lat, lng, type) {
+        // If type not set, ask
+        if (!type) type = prompt("Loại cây (VD: Sầu riêng):", "Sầu riêng");
+        if (!type) return;
+
+        const { error } = await CoreModule.supabase.from('Ban_Do_So').insert({
+            loai: type,
+            x: lat,
+            y: lng,
+            trang_thai: 'Tốt',
+            giai_doan: 'Mới trồng',
+            ngay_trong: new Date()
+        });
+
+        if (error) CoreModule.toast('error', error.message);
+        else {
+            if (!this.bulkMode) {
+                CoreModule.toast('success', 'Đã thêm ' + type);
+                location.reload(); 
+            } else {
+                CoreModule.toast('success', 'Đã thêm (Chế độ hàng loạt)');
+                L.circleMarker([lat, lng], { color: 'white', fillColor: '#4caf50', fillOpacity: 0.5, radius: 5 }).addTo(this.map);
+            }
+        }
+    },
+
+    toggleBulkMode: function() {
+        this.bulkMode = !this.bulkMode;
+        this.selectedType = $('#map-type-select').val(); // Get selected type
+        
+        const btn = $('#btn-bulk-mode');
+        if (this.bulkMode) {
+            btn.addClass('btn-warning').removeClass('btn-outline-primary').html('<i class="fas fa-bolt"></i> Đang Bật');
+            CoreModule.toast('info', `Đã bật chế độ thêm nhanh: ${this.selectedType}`);
+        } else {
+            btn.addClass('btn-outline-primary').removeClass('btn-warning').html('<i class="fas fa-magic"></i> Thêm Nhanh');
+            location.reload(); // Reload to sync all data
+        }
     },
 
     toggleListView: function() {
@@ -69,89 +160,18 @@ const MapModule = {
         }
     },
 
-    deleteTree: async function(id) {
-        if (!confirm("Xóa cây này?")) return;
-        await CoreModule.supabase.from('Ban_Do_So').delete().eq('id', id);
-        CoreModule.toast('success', 'Đã xóa');
-        location.reload();
-    },
-
-    renderMarkers: function(trees) {
-        trees.forEach(t => {
-            // Color Logic
-            let color = '#2e7d32'; // Green (Default)
-            if (t.trang_thai === 'Bệnh') color = '#c62828'; // Red
-            if (t.trang_thai === 'Cần nước') color = '#0277bd'; // Blue
-            if (t.trang_thai === 'Thu hoạch') color = '#f9a825'; // Yellow
-
-            // Marker
-            const marker = L.circleMarker([t.x, t.y], {
-                color: color,
-                fillColor: color,
-                fillOpacity: 0.7,
-                radius: 8,
-                draggable: true
-            }).addTo(this.map);
-
-            // Drag End (Update Position)
-            marker.on('dragend', (e) => {
-                const newPos = e.target.getLatLng();
-                this.updatePosition(t.id, newPos.lat, newPos.lng);
-            });
-
-            // Popup (Advanced)
-            const popupContent = `
-                <div class="text-center">
-                    <strong class="text-uppercase">${t.loai}</strong>
-                    <div class="badge bg-secondary mb-2">${t.giai_doan || 'Chưa rõ'}</div>
-                    <div class="mb-2">
-                        <span class="badge ${t.trang_thai === 'Tốt' ? 'bg-success' : 'bg-danger'}">${t.trang_thai}</span>
-                    </div>
-                    <div class="d-grid gap-2">
-                        <button class="btn btn-sm btn-outline-primary" onclick="MapModule.logAction('${t.id}', 'Tưới nước')">💧 Tưới</button>
-                        <button class="btn btn-sm btn-outline-warning" onclick="MapModule.logAction('${t.id}', 'Bón phân')">💊 Phân</button>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="MapModule.editTree('${t.id}')">✏️ Sửa</button>
-                    </div>
-                </div>
-            `;
-            marker.bindPopup(popupContent);
-        });
-    },
-
-    addTree: async function(lat, lng) {
-        const type = prompt("Loại cây:", "Sầu riêng");
-        if (!type) return;
-        const { error } = await CoreModule.supabase.from('Ban_Do_So').insert({
-            loai: type, x: lat, y: lng, trang_thai: 'Tốt', giai_doan: 'Cây con', ngay_trong: new Date()
-        });
-        
-        if (error) CoreModule.toast('error', error.message);
-        else { CoreModule.toast('success', 'Đã trồng cây!'); location.reload(); }
-    },
-
-    updatePosition: async function(id, lat, lng) {
-        await CoreModule.supabase.from('Ban_Do_So').update({ x: lat, y: lng }).eq('id', id);
-        CoreModule.toast('success', 'Đã di chuyển!');
-    },
-
-    logAction: async function(id, action) {
-        // Fetch current history
-        const { data } = await CoreModule.supabase.from('Ban_Do_So').select('lich_su_cham_soc').eq('id', id).single();
-        let history = data.lich_su_cham_soc || [];
-        
-        // Add new action
-        history.push({ date: new Date().toISOString(), action: action });
-        
-        // Update DB
-        await CoreModule.supabase.from('Ban_Do_So').update({ lich_su_cham_soc: history }).eq('id', id);
-        CoreModule.toast('success', `Đã ghi nhận: ${action}`);
-    },
-
     editTree: async function(id) {
         const status = prompt("Trạng thái mới (Tốt/Bệnh/Thu hoạch):");
         if (status) {
             await CoreModule.supabase.from('Ban_Do_So').update({ trang_thai: status }).eq('id', id);
             location.reload();
         }
+    },
+
+    deleteTree: async function(id) {
+        if (!confirm("Xóa cây này?")) return;
+        await CoreModule.supabase.from('Ban_Do_So').delete().eq('id', id);
+        CoreModule.toast('success', 'Đã xóa');
+        location.reload();
     }
 };
