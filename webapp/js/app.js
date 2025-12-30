@@ -16,13 +16,24 @@ $(document).ready(function() {
 async function initApp() {
     CoreModule.showLoading('Đang tải dữ liệu...');
     try {
-        const { data: staff } = await CoreModule.supabase.from('Nhan_Su').select('*');
-        const { data: jobs } = await CoreModule.supabase.from('Cau_Hinh_Cong_Viec').select('*');
-        const { data: expenses } = await CoreModule.supabase.from('Cau_Hinh_Chi_Phi').select('*');
-        const { data: inventory } = await CoreModule.supabase.from('Kho_Vat_Tu').select('*');
-        const { data: trees } = await CoreModule.supabase.from('Ban_Do_So').select('*');
-        const { data: finance } = await CoreModule.supabase.from('Tai_Chinh').select('*').order('ngay', { ascending: false }).limit(50);
-        const { data: knowledge } = await CoreModule.supabase.from('Kho_Tri_Thuc').select('*');
+        // Parallel Loading for Speed
+        const [
+            { data: staff },
+            { data: jobs },
+            { data: expenses },
+            { data: inventory },
+            { data: trees },
+            { data: finance },
+            { data: knowledge }
+        ] = await Promise.all([
+            CoreModule.supabase.from('Nhan_Su').select('*'),
+            CoreModule.supabase.from('Cau_Hinh_Cong_Viec').select('*'),
+            CoreModule.supabase.from('Cau_Hinh_Chi_Phi').select('*'),
+            CoreModule.supabase.from('Kho_Vat_Tu').select('*'),
+            CoreModule.supabase.from('Ban_Do_So').select('*'),
+            CoreModule.supabase.from('Tai_Chinh').select('*').order('ngay', { ascending: false }).limit(50),
+            CoreModule.supabase.from('Kho_Tri_Thuc').select('*')
+        ]);
 
         // Initialize Modules
         DashboardModule.init(trees, staff, inventory, finance);
