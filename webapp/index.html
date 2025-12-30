@@ -142,10 +142,16 @@
                     <div class="col-md-8">
                          <div class="glass-card mb-3">
                             <h5><i class="fas fa-chart-bar"></i> Tài Chính Tháng</h5>
-                            <canvas id="financeChart" style="height:200px"></canvas>
+                            <div style="height: 250px; position: relative;">
+                                <canvas id="financeChart"></canvas>
+                            </div>
                         </div>
                     </div>
                     <div class="col-md-4">
+                        <div class="glass-card mb-3">
+                            <h5><i class="fas fa-cloud-sun"></i> Thời Tiết</h5>
+                            <div id="weather-widget">Loading weather...</div>
+                        </div>
                         <div class="glass-card mb-3">
                             <h5><i class="fas fa-tasks"></i> Việc Hôm Nay</h5>
                             <ul id="today-tasks" class="list-group list-group-flush small"></ul>
@@ -165,8 +171,24 @@
 
             <!-- 2. MAP -->
             <div class="tab-pane fade" id="map-view">
-                <div class="glass-card">
-                    <div id="map"></div>
+                <div class="glass-card p-0 overflow-hidden">
+                    <div class="d-flex justify-content-between align-items-center p-2 bg-light border-bottom">
+                        <small class="text-muted"><i class="fas fa-info-circle"></i> Chạm bản đồ để thêm cây</small>
+                        <button class="btn btn-sm btn-outline-primary" onclick="MapModule.toggleListView()"><i class="fas fa-list"></i> Danh Sách</button>
+                    </div>
+                    
+                    <!-- Map Container -->
+                    <div id="map-container" style="height: 70vh;">
+                        <div id="map" style="height: 100%; width: 100%;"></div>
+                    </div>
+
+                    <!-- List View Container (Hidden) -->
+                    <div id="tree-list-container" style="height: 70vh; overflow-y: auto; display: none;" class="p-2">
+                        <table class="table table-sm table-striped" id="table-trees">
+                            <thead class="sticky-top bg-white"><tr><th>Loại</th><th>Trạng Thái</th><th>#</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
@@ -320,7 +342,11 @@
                             <table class="table table-sm" id="table-expenses"><thead><tr><th>Loại</th><th>Nhóm</th><th>#</th></tr></thead><tbody></tbody></table>
                         </div>
 
-                        <button class="btn btn-outline-info text-start" onclick="ConfigModule.addKnowledge()"><i class="fas fa-book me-2"></i> Thêm Tri Thức AI</button>
+                        <button class="btn btn-outline-info text-start" onclick="$('#cfg-know').toggle()"><i class="fas fa-book me-2"></i> Kho Tri Thức AI</button>
+                        <div id="cfg-know" style="display:none">
+                            <button class="btn btn-sm btn-info mb-2 w-100 text-white" onclick="ConfigModule.addKnowledge()">+ Thêm Hỏi/Đáp</button>
+                            <table class="table table-sm" id="table-knowledge"><thead><tr><th>Từ Khóa</th><th>Trả Lời</th><th>#</th></tr></thead><tbody></tbody></table>
+                        </div>
                         
                         <div class="mt-3 border-top pt-2">
                             <label class="small text-muted">Cấu Hình AI System Prompt</label>
