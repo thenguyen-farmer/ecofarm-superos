@@ -4,6 +4,7 @@ const CoreModule = {
     
     init: function() {
         if (typeof CONFIG === 'undefined' || CONFIG.SUPABASE_URL.includes('YOUR_')) {
+            $('#loading-overlay').fadeOut(); // Hide overlay to show alert
             Swal.fire("Cấu hình", "Vui lòng cập nhật API Key trong js/config.js", "warning");
             return false;
         }
@@ -13,6 +14,7 @@ const CoreModule = {
             return true;
         } catch (e) {
             console.error(e);
+            $('#loading-overlay').fadeOut();
             Swal.fire("Lỗi kết nối", e.message, "error");
             return false;
         }
@@ -36,6 +38,7 @@ const CoreModule = {
 
     // Hide Loading
     hideLoading: function() {
+        $('#loading-overlay').fadeOut();
         Swal.close();
     },
 
