@@ -33,6 +33,49 @@ const MapModule = {
         });
     },
 
+    toggleListView: function() {
+        const mapDiv = $('#map-container');
+        const listDiv = $('#tree-list-container');
+        
+        if (mapDiv.is(':visible')) {
+            mapDiv.hide();
+            listDiv.show();
+            this.renderTreeTable();
+        } else {
+            listDiv.hide();
+            mapDiv.show();
+            if (this.map) this.map.invalidateSize();
+        }
+    },
+
+    renderTreeTable: async function() {
+        const { data: trees } = await CoreModule.supabase.from('Ban_Do_So').select('*').order('ngay_cn', {ascending: false});
+        const tbody = $('#table-trees tbody');
+        tbody.empty();
+        
+        if (trees) {
+            trees.forEach(t => {
+                tbody.append(`
+                    <tr>
+                        <td>${t.loai}</td>
+                        <td>${t.trang_thai}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="MapModule.editTree('${t.id}')"><i class="fas fa-edit"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="MapModule.deleteTree('${t.id}')"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `);
+            });
+        }
+    },
+
+    deleteTree: async function(id) {
+        if (!confirm("Xóa cây này?")) return;
+        await CoreModule.supabase.from('Ban_Do_So').delete().eq('id', id);
+        CoreModule.toast('success', 'Đã xóa');
+        location.reload();
+    },
+
     renderMarkers: function(trees) {
         trees.forEach(t => {
             // Color Logic
