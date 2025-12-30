@@ -46,6 +46,9 @@ const FinanceModule = {
     },
 
     submitRevenue: async function() {
+        const date = $('#rev-date').val();
+        if (!date) return CoreModule.toast('warning', 'Chọn ngày!');
+
         const type = $('#rev-type').val();
         const qty = Number($('#rev-qty').val());
         const price = Number($('#rev-price').val());
@@ -55,6 +58,7 @@ const FinanceModule = {
 
         // 1. Add to Nguon_Thu
         const { data: rev, error } = await CoreModule.supabase.from('Nguon_Thu').insert({
+            ngay: date,
             loai_nong_san: type,
             so_luong: qty,
             don_gia: price,
@@ -66,7 +70,7 @@ const FinanceModule = {
 
         // 2. Add to Tai_Chinh (Cash Flow)
         await CoreModule.supabase.from('Tai_Chinh').insert({
-            ngay: new Date(),
+            ngay: date,
             loai: 'Thu',
             hang_muc: type,
             so_luong: qty,
